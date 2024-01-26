@@ -356,7 +356,7 @@ class Arena():
         curPlayer = 1 # player1 go first
         board = self.game.getInitBoard()
         it = 0
-        while self.game.getGameEnded(board, curPlayer) is not None:
+        while self.game.getGameEnded(board, curPlayer) is None:
             it += 1
             if verbose:
                 assert self.display

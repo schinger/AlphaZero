@@ -12,7 +12,7 @@ from collections import deque
 from pickle import Pickler, Unpickler
 from random import shuffle
 
-from game import Arena
+from game import *
 
 log = logging.getLogger(__name__)
 
@@ -113,8 +113,8 @@ class MCTS():
         # pick the action with the highest upper confidence bound
         for a in range(self.game.getActionSize()):
             if valids[a]:
-                u = self.Qsa.get((s, a)) + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s]) / (
-                            1 + self.Nsa[(s, a)])
+                u = self.Qsa.get((s, a), 0) + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s]) / (
+                            1 + self.Nsa.get((s, a), 0))
 
                 if u > cur_best:
                     cur_best = u
@@ -305,7 +305,7 @@ class SelfPlay():
     def __init__(self, game, nnet, args):
         self.game = game
         self.nnet = nnet
-        self.pnet = self.nnet.__class__(self.game)  # the competitor network
+        self.pnet = self.nnet.__class__(self.game, args)  # the competitor network
         self.args = args
         self.mcts = MCTS(self.game, self.nnet, self.args)
         self.trainExamplesHistory = []  # history of examples from args.numItersForTrainExamplesHistory latest iterations
@@ -401,3 +401,59 @@ class SelfPlay():
                 log.info('ACCEPTING NEW MODEL')
                 self.nnet.save_checkpoint(folder=self.args.checkpoint, filename='best.pth.tar')
 
+
+class dotdict(dict):
+    def __getattr__(self, name):
+        return self[name]
+
+
+args = dotdict({
+    'lr': 0.001,
+    'dropout': 0.1,
+    'epochs': 10,
+    'batch_size': 64,
+    'cuda': torch.cuda.is_available(),
+    'num_channels': 512,
+
+    'numIters': 1000,
+    'numEps': 100,              # Number of complete self-play games to simulate during a new iteration.
+    'tempThreshold': 15,        #
+    'updateThreshold': 0.6,     # During arena playoff, new neural net will be accepted if threshold ratio or more of games are won.
+    'maxlenOfQueue': 200000,    # Number of game examples to train the neural networks.
+    'numItersForTrainExamplesHistory': 20,
+    'numMCTSSims': 25,          # Number of games moves for MCTS to simulate.
+    'arenaCompare': 40,         # Number of games to play during arena play to determine if new net will be accepted.
+    'cpuct': 1,
+
+    'checkpoint': './temp/',
+    'load_model': False,
+    'load_folder_file': ('/dev/models/8x100x50','best.pth.tar'),
+    })
+
+def main():
+    log.setLevel(logging.INFO)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train', action="store_true")
+    parser.add_argument('--pit', action="store_true")
+    parser.add_argument('--board_size', type=int, default=6)
+    args_input = vars(parser.parse_args())
+    for k,v in args_input.items():
+        args[k] = v
+    
+    g = OthelloGame(args.board_size)
+
+    if args.train:
+        nnet = NNetWrapper(g, args)
+        if args.load_model:
+            log.info('Loading checkpoint "%s/%s"...', args.load_folder_file[0], args.load_folder_file[1])
+            nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
+
+        log.info('Loading the Coach...')
+        s = SelfPlay(g, nnet, args)
+
+        log.info('Starting the learning process 🎉')
+        s.learn()
+
+if __name__ == '__main__':
+    main()
