@@ -13,7 +13,7 @@ from pickle import Pickler, Unpickler
 from random import shuffle
 
 from game import *
-
+logging.basicConfig(level = logging.INFO)
 log = logging.getLogger(__name__)
 
 
@@ -291,7 +291,7 @@ class NNetWrapper():
     def load_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
         filepath = os.path.join(folder, filename)
         if not os.path.exists(filepath):
-            raise ("No model in path {}".format(filepath))
+            raise ValueError("No model in path {}".format(filepath))
         map_location = None if self.args.cuda else 'cpu'
         checkpoint = torch.load(filepath, map_location=map_location)
         self.nnet.load_state_dict(checkpoint['state_dict'])
@@ -415,7 +415,7 @@ args = dotdict({
     'cuda': torch.cuda.is_available(),
     'num_channels': 512,
 
-    'numIters': 1000,
+    'numIters': 200,
     'numEps': 100,              # Number of complete self-play games to simulate during a new iteration.
     'tempThreshold': 15,        #
     'updateThreshold': 0.6,     # During arena playoff, new neural net will be accepted if threshold ratio or more of games are won.
@@ -427,16 +427,21 @@ args = dotdict({
 
     'checkpoint': './temp/',
     'load_model': False,
-    'load_folder_file': ('/dev/models/8x100x50','best.pth.tar'),
+    'load_folder_file': ('./temp/','best.pth.tar'),
     })
 
 def main():
-    log.setLevel(logging.INFO)
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action="store_true")
-    parser.add_argument('--pit', action="store_true")
     parser.add_argument('--board_size', type=int, default=6)
+    # play arguments
+    parser.add_argument('--play', action="store_true")
+    parser.add_argument('--verbose', action="store_true")
+    parser.add_argument('--round', type=int, default=2)
+    parser.add_argument('--player1', type=str, default='human', choices=['human', 'random', 'greedy', 'alphazero'])
+    parser.add_argument('--player2', type=str, default='alphazero', choices=['human', 'random', 'greedy', 'alphazero'])
+    parser.add_argument('--ckpt_file', type=str, default='best.pth.tar')
     args_input = vars(parser.parse_args())
     for k,v in args_input.items():
         args[k] = v
@@ -449,11 +454,32 @@ def main():
             log.info('Loading checkpoint "%s/%s"...', args.load_folder_file[0], args.load_folder_file[1])
             nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
 
-        log.info('Loading the Coach...')
+        log.info('Loading the SelfCoach...')
         s = SelfPlay(g, nnet, args)
 
         log.info('Starting the learning process 🎉')
         s.learn()
+    
+    if args.play:
+        def getPlayFunc(name):
+            if name == 'human':
+                return HumanOthelloPlayer(g).play
+            elif name == 'random':
+                return RandomPlayer(g).play
+            elif name == 'greedy':
+                return GreedyOthelloPlayer(g).play
+            elif name == 'alphazero':
+                nnet = NNetWrapper(g, args)
+                nnet.load_checkpoint(args.checkpoint, args.ckpt_file)
+                mcts = MCTS(g, nnet, dotdict({'numMCTSSims': 50, 'cpuct':1.0}))
+                return lambda x: np.argmax(mcts.getActionProb(x, temp=0))
+            else:
+                raise ValueError('not support player name {}'.format(name))
+        player1 = getPlayFunc(args.player1)
+        player2 = getPlayFunc(args.player2)
+        arena = Arena(player1, player2, g, display=OthelloGame.display)
+        results = arena.playGames(args.round, verbose=args.verbose)
+        print("Final results: Player1 wins {}, Player2 wins {}, Draws {}".format(*results))
 
 if __name__ == '__main__':
     main()
