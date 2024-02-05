@@ -7,6 +7,7 @@ This repo is based on https://github.com/suragnair/alpha-zero-general, while muc
 - It only contains two python files, the only requirement is Pytorch (any version).
 - Make the recursive MCTS more intuitive: the `search(canonicalBoard)` function return the value of the current canonicalBoard which is recursively called: `v = -search(next_canonicalBoard)` if current canonicalBoard isn't a terminal/leaf node based on the zero-sum game nature.
 - To save people with OCD: `getGameEnded(self, board, player)` return None if not ended, 1 if player won, -1 if player lost, 0 if draw. Rather then a small positve number for draw.
+- Move all the args into one place and make it configurable.
 - Fix several bugs and erroneous comments.
 
 ## Train
