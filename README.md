@@ -37,6 +37,3 @@ You can play with Alphazero too, please let me know if you can beat it:
 ```
 python alphazero.py --play --round=2 --player1=human --ckpt_file=iter106.pth.tar --verbose
 ```
-
-## Reference
-- [Othello is Solved](http://mp.weixin.qq.com/s?__biz=Mzg2MTUyODU2NA==&mid=2247598677&idx=1&sn=5d9751b703b23b517320cf1d704753dd&chksm=ce16cacef96143d81815c5ddb2f8cad3de6de92d89d98db9c61ebda3cfa065236695d35834f6&mpshare=1&scene=24&srcid=1227fjlEsKIa8nOPps22AMlM&sharer_shareinfo=959b50970f470f989ff044475ff3d97d&sharer_shareinfo_first=959b50970f470f989ff044475ff3d97d#rd)
