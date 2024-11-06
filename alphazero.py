@@ -165,6 +165,7 @@ class OthelloNNet(nn.Module):
         self.fc4 = nn.Linear(512, 1)
 
     def forward(self, s):
+        # you can add residual to the network
         #                                                           s: batch_size x board_x x board_y
         s = s.view(-1, 1, self.board_x, self.board_y)                # batch_size x 1 x board_x x board_y
         s = F.relu(self.bn1(self.conv1(s)))                          # batch_size x num_channels x board_x x board_y
@@ -322,7 +323,7 @@ class SelfPlay():
         uses temp=0.
 
         Returns:
-            trainExamples: a list of examples of the form (canonicalBoard, pi,v)
+            trainExamples: a list of examples of the form (canonicalBoard, pi, v)
         """
         trainExamples = []
         board = self.game.getInitBoard()
@@ -345,6 +346,7 @@ class SelfPlay():
             r = self.game.getGameEnded(board, self.curPlayer)
 
             if r is not None:
+                # r * (1 if self.curPlayer == x[1] else -1) means 1 for winner, -1 for loser, 0 for draw.
                 return [(x[0], x[2], r * (1 if self.curPlayer == x[1] else -1)) for x in trainExamples]
 
     def learn(self):
